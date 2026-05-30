@@ -1,0 +1,93 @@
+[
+  {
+    "id": "lower-juba",
+    "name": "Lower Juba",
+    "region": "Jubaland",
+    "forestLoss": 86,
+    "charcoalPressure": 90,
+    "landDegradation": 58,
+    "communityVulnerability": 72
+  },
+  {
+    "id": "middle-juba",
+    "name": "Middle Juba",
+    "region": "Jubaland",
+    "forestLoss": 74,
+    "charcoalPressure": 83,
+    "landDegradation": 61,
+    "communityVulnerability": 64
+  },
+  {
+    "id": "banadir",
+    "name": "Banadir",
+    "region": "Banadir",
+    "forestLoss": 28,
+    "charcoalPressure": 36,
+    "landDegradation": 41,
+    "communityVulnerability": 55
+  },
+  {
+    "id": "bay",
+    "name": "Bay",
+    "region": "South West",
+    "forestLoss": 63,
+    "charcoalPressure": 57,
+    "landDegradation": 74,
+    "communityVulnerability": 68
+  },
+  {
+    "id": "bakool",
+    "name": "Bakool",
+    "region": "South West",
+    "forestLoss": 51,
+    "charcoalPressure": 44,
+    "landDegradation": 79,
+    "communityVulnerability": 71
+  },
+  {
+    "id": "mudug",
+    "name": "Mudug",
+    "region": "Galmudug",
+    "forestLoss": 37,
+    "charcoalPressure": 49,
+    "landDegradation": 67,
+    "communityVulnerability": 62
+  },
+  {
+    "id": "nugaal",
+    "name": "Nugaal",
+    "region": "Puntland",
+    "forestLoss": 33,
+    "charcoalPressure": 40,
+    "landDegradation": 65,
+    "communityVulnerability": 59
+  },
+  {
+    "id": "bari",
+    "name": "Bari",
+    "region": "Puntland",
+    "forestLoss": 42,
+    "charcoalPressure": 61,
+    "landDegradation": 54,
+    "communityVulnerability": 57
+  },
+  {
+    "id": "sanaag",
+    "name": "Sanaag",
+    "region": "Somaliland",
+    "forestLoss": 47,
+    "charcoalPressure": 52,
+    "landDegradation": 60,
+    "communityVulnerability": 58
+  },
+  {
+    "id": "togdheer",
+    "name": "Togdheer",
+    "region": "Somaliland",
+    "forestLoss": 39,
+    "charcoalPressure": 43,
+    "landDegradation": 63,
+    "communityVulnerability": 56
+  }
+]
+
