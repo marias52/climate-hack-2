@@ -27,6 +27,7 @@ ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_DIR = ROOT / "frontend"
 DIST_DIR = FRONTEND_DIR / "dist"
 CSV_PATH = Path(__file__).resolve().parent / "data" / "raw" / "district_indicators.csv"
+REGION_POP_PATH = Path(__file__).resolve().parent / "data" / "raw" / "region_population.csv"
 
 REQUIRED_COLUMNS = {
     "district",
@@ -36,6 +37,8 @@ REQUIRED_COLUMNS = {
     "land_degradation",
     "vulnerability",
 }
+
+REGION_POP_REQUIRED_COLUMNS = {"region", "population"}
 
 
 def _slugify(text: str) -> str:
@@ -53,6 +56,13 @@ def _to_float(value: Any, *, field: str, district: str) -> float:
 
 def _clamp_0_100(value: float) -> float:
     return max(0.0, min(100.0, float(value)))
+
+def _to_int(value: Any, *, field: str, region: str) -> int:
+    try:
+        # Allow floats that are whole numbers, but store as int.
+        return int(float(value))
+    except Exception as e:
+        raise ValueError(f"Invalid integer for `{field}` in region `{region}`: {value!r}") from e
 
 
 @lru_cache(maxsize=1)
@@ -109,6 +119,47 @@ def _load_rows() -> list[dict[str, Any]]:
     return out
 
 
+@lru_cache(maxsize=1)
+def _load_region_population() -> dict[str, int]:
+    """
+    Reads CSV with columns:
+    `region,population`
+
+    Returns:
+    - { "Lower Juba": 1199276, ... }
+    """
+    if not REGION_POP_PATH.exists():
+        return {}
+
+    with REGION_POP_PATH.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        if not reader.fieldnames:
+            raise ValueError("region_population.csv has no header row.")
+        present = {h.strip() for h in reader.fieldnames if h}
+        missing = sorted(REGION_POP_REQUIRED_COLUMNS - present)
+        if missing:
+            raise ValueError(f"region_population.csv missing required columns: {', '.join(missing)}")
+
+        out: dict[str, int] = {}
+        for r in reader:
+            region = (r.get("region") or "").strip()
+            if not region:
+                continue
+            pop = _to_int(r.get("population"), field="population", region=region)
+            if pop < 0:
+                raise ValueError(f"Population cannot be negative for region `{region}`.")
+            out[region] = pop
+        return out
+
+
+def _attach_population(d: dict[str, Any], region_pop: dict[str, int]) -> dict[str, Any]:
+    rp = region_pop.get(d.get("region", ""), 0)
+    vuln = float(d.get("communityVulnerability", 0.0) or 0.0)
+    # Simple MVP heuristic: vulnerable share of region population.
+    people_at_risk = int(round(rp * max(0.0, min(100.0, vuln)) / 100.0))
+    return {**d, "regionPopulation": rp, "estimatedPeopleAtRisk": people_at_risk}
+
+
 app = FastAPI(title="EcoRestore Somalia API", version="0.0.1")
 
 @app.get("/")
@@ -131,11 +182,16 @@ def list_districts() -> dict[str, Any]:
         rows = _load_rows()
     except (FileNotFoundError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    try:
+        region_pop = _load_region_population()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     weights = normalize_weights(DEFAULT_WEIGHTS)
     enriched: list[dict[str, Any]] = []
     for d in rows:
         score = compute_priority_score(d, weights)
-        enriched.append({**d, "priorityScore": score, "riskCategory": categorize_risk(score)})
+        base = _attach_population(d, region_pop)
+        enriched.append({**base, "priorityScore": score, "riskCategory": categorize_risk(score)})
     enriched.sort(key=lambda x: float(x["priorityScore"]), reverse=True)
     return {"districts": enriched, "weights": weights}
 
@@ -146,11 +202,16 @@ def get_district(district_id: str) -> dict[str, Any]:
         rows = _load_rows()
     except (FileNotFoundError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    try:
+        region_pop = _load_region_population()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     d = next((x for x in rows if x["id"] == district_id), None)
     if not d:
         raise HTTPException(status_code=404, detail="district not found")
     score = compute_priority_score(d, DEFAULT_WEIGHTS)
-    return {**d, "priorityScore": score, "riskCategory": categorize_risk(score)}
+    base = _attach_population(d, region_pop)
+    return {**base, "priorityScore": score, "riskCategory": categorize_risk(score)}
 
 
 @app.get("/api/districts/{district_id}/package")
@@ -159,22 +220,28 @@ def get_package(district_id: str) -> dict[str, Any]:
         rows = _load_rows()
     except (FileNotFoundError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    try:
+        region_pop = _load_region_population()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     d = next((x for x in rows if x["id"] == district_id), None)
     if not d:
         raise HTTPException(status_code=404, detail="district not found")
+    base = _attach_population(d, region_pop)
     score = compute_priority_score(d, DEFAULT_WEIGHTS)
-    recs = recommend_interventions(d)
-    impact = forecast_impact(d, recs)
+    recs = recommend_interventions(base)
+    impact = forecast_impact(base, recs)
     return {
-        "district": {**d, "priorityScore": score, "riskCategory": categorize_risk(score)},
+        "district": {**base, "priorityScore": score, "riskCategory": categorize_risk(score)},
         "recommendations": recs,
         "impact": impact,
         "actionPlan": {
-            "target": f'{d["name"]} ({d["region"]})',
+            "target": f'{base["name"]} ({base["region"]})',
             "risk": categorize_risk(score),
             "score": score,
             "package": " + ".join([r["title"] for r in recs]) if recs else "No package",
             "firstSteps": "Coordinate district assessment, validate drivers, confirm community priorities, and deploy a pilot package.",
+            "estimatedPeopleAtRisk": base["estimatedPeopleAtRisk"],
         },
     }
 
