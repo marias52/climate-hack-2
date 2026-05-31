@@ -1,0 +1,74 @@
+[
+  {
+    "region": "Awdal",
+    "forest_loss_ha": 0.0
+  },
+  {
+    "region": "Bakool",
+    "forest_loss_ha": 0.0
+  },
+  {
+    "region": "Banaadir",
+    "forest_loss_ha": 0.0
+  },
+  {
+    "region": "Bari",
+    "forest_loss_ha": 0.0
+  },
+  {
+    "region": "Bay",
+    "forest_loss_ha": 64.15
+  },
+  {
+    "region": "Galguduud",
+    "forest_loss_ha": 0.0
+  },
+  {
+    "region": "Gedo",
+    "forest_loss_ha": 3.61
+  },
+  {
+    "region": "Hiiraan",
+    "forest_loss_ha": 0.31
+  },
+  {
+    "region": "Jubbada Dhexe",
+    "forest_loss_ha": 2649.96
+  },
+  {
+    "region": "Jubbada Hoose",
+    "forest_loss_ha": 1327.7
+  },
+  {
+    "region": "Mudug",
+    "forest_loss_ha": 0.0
+  },
+  {
+    "region": "Nugaal",
+    "forest_loss_ha": 0.0
+  },
+  {
+    "region": "Sanaag",
+    "forest_loss_ha": 58.12
+  },
+  {
+    "region": "Shabeellaha Dhexe",
+    "forest_loss_ha": 213.22
+  },
+  {
+    "region": "Shabeellaha Hoose",
+    "forest_loss_ha": 545.85
+  },
+  {
+    "region": "Sool",
+    "forest_loss_ha": 0.0
+  },
+  {
+    "region": "Togdheer",
+    "forest_loss_ha": 0.0
+  },
+  {
+    "region": "Woqooyi Galbeed",
+    "forest_loss_ha": 0.0
+  }
+]
