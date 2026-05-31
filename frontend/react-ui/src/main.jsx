@@ -117,7 +117,18 @@ const districts = [
   }
 ];
 
-const metricLabels = [
+const noDataRegions = [
+  'Awdal',
+  'Gedo',
+  'Hiraan',
+  'Lower Shabelle',
+  'Middle Shabelle',
+  'Sool',
+  'Togdheer',
+  'Woqooyi Galbeed'
+];
+
+const dataLayers = [
   ['forestLoss', 'Forest loss'],
   ['populationImpact', 'Population impact'],
   ['charcoalDependency', 'Charcoal dependency'],
@@ -125,33 +136,78 @@ const metricLabels = [
   ['droughtStress', 'Drought stress']
 ];
 
+const districtPositions = [
+  { x: 79, y: 70 },
+  { x: 78, y: 61 },
+  { x: 72, y: 58 },
+  { x: 70, y: 50 },
+  { x: 82, y: 29 },
+  { x: 77, y: 22 },
+  { x: 77, y: 43 },
+  { x: 74, y: 66 }
+];
+
 function App() {
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState(districts[0].id);
+  const [selectedRegion, setSelectedRegion] = useState('All');
+  const [activeLayers, setActiveLayers] = useState(dataLayers.map(([key]) => key));
+  const [zoomed, setZoomed] = useState(false);
 
-  const filteredDistricts = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return districts;
-    return districts.filter((district) =>
-      `${district.name} ${district.region}`.toLowerCase().includes(normalized)
-    );
-  }, [query]);
+  const regions = useMemo(() => {
+    const dataRegions = [...new Set(districts.map((district) => district.region))];
+    return ['All', ...dataRegions, ...noDataRegions];
+  }, []);
 
   const selected = districts.find((district) => district.id === selectedId) || districts[0];
+  const selectedRegionHasData =
+    selectedRegion === 'All' || districts.some((district) => district.region === selectedRegion);
+
+  const visibleDistricts = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return districts.filter((district) => {
+      const matchesQuery = `${district.name} ${district.region}`.toLowerCase().includes(normalized);
+      const matchesRegion = selectedRegion === 'All' || district.region === selectedRegion;
+      return matchesQuery && matchesRegion;
+    });
+  }, [query, selectedRegion]);
+
+  function toggleLayer(layerKey) {
+    setActiveLayers((layers) =>
+      layers.includes(layerKey)
+        ? layers.filter((key) => key !== layerKey)
+        : [...layers, layerKey]
+    );
+  }
+
+  function displayScore(district) {
+    if (activeLayers.length === 0 || activeLayers.length === dataLayers.length) {
+      return district.priorityScore;
+    }
+    const total = activeLayers.reduce((sum, key) => sum + district[key], 0);
+    return Math.round(total / activeLayers.length);
+  }
+
+  const selectedDisplayScore = displayScore(selected);
+  const selectedRisk = getRiskLevel(selectedDisplayScore);
 
   return (
     <main className="dashboard-shell">
       <aside className="sidebar" aria-label="District priority list">
         <div className="brand-block">
-          <span className="brand-mark">E</span>
+          <div className="logo-scene" aria-label="Hakad landscape logo">
+            <span className="tree-canopy" />
+            <span className="tree-trunk" />
+            <span className="people-row" />
+          </div>
           <div>
-            <p className="eyebrow">EcoRestore</p>
-            <h1>Somalia</h1>
+            <p className="eyebrow">Restoration intelligence</p>
+            <h1>Hakad</h1>
           </div>
         </div>
 
         <label className="search-box">
-          <span>Search district</span>
+          <span>Search district or region</span>
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -159,91 +215,155 @@ function App() {
           />
         </label>
 
+        <section className="layer-panel" aria-label="Data layers">
+          <div className="panel-title">
+            <span>Data layers</span>
+            <b>{activeLayers.length}/{dataLayers.length}</b>
+          </div>
+          {dataLayers.map(([key, label]) => (
+            <label key={key} className="toggle-row">
+              <input
+                type="checkbox"
+                checked={activeLayers.includes(key)}
+                onChange={() => toggleLayer(key)}
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </section>
+
+        <section className="region-panel" aria-label="Region filter">
+          <div className="panel-title">
+            <span>Regions</span>
+            <b>{selectedRegionHasData ? 'Data' : 'No data'}</b>
+          </div>
+          <div className="region-chips">
+            {regions.map((region) => {
+              const hasData = region === 'All' || districts.some((district) => district.region === region);
+              return (
+                <button
+                  key={region}
+                  className={`${selectedRegion === region ? 'active' : ''} ${hasData ? '' : 'empty'}`}
+                  onClick={() => setSelectedRegion(region)}
+                >
+                  {region}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
         <div className="priority-summary">
-          <span>Priority districts</span>
-          <strong>{districts.filter((district) => district.priorityScore >= 70).length}</strong>
+          <span>High priority</span>
+          <strong>{districts.filter((district) => displayScore(district) >= 70).length}</strong>
         </div>
 
         <div className="district-list">
-          {filteredDistricts.map((district) => (
-            <button
-              key={district.id}
-              className={`district-item ${selected.id === district.id ? 'active' : ''}`}
-              onClick={() => setSelectedId(district.id)}
-            >
-              <span>
-                <strong>{district.name}</strong>
-                <small>{district.region}</small>
-              </span>
-              <b>{district.priorityScore}</b>
-            </button>
-          ))}
+          {!selectedRegionHasData && (
+            <div className="no-data-card">
+              <strong>{selectedRegion}</strong>
+              <span>No data available yet</span>
+            </div>
+          )}
+
+          {selectedRegionHasData && visibleDistricts.map((district) => {
+            const score = displayScore(district);
+            const risk = getRiskLevel(score);
+            return (
+              <button
+                key={district.id}
+                className={`district-item ${selected.id === district.id ? 'active' : ''}`}
+                onClick={() => setSelectedId(district.id)}
+              >
+                <span>
+                  <strong>{district.name}</strong>
+                  <small>{district.region}</small>
+                </span>
+                <span className={`risk-pill ${risk.toLowerCase()}`}>{risk}</span>
+                <b>{score}</b>
+              </button>
+            );
+          })}
         </div>
       </aside>
 
-      <section className="map-panel" aria-label="Somalia priority heatmap placeholder">
+      <section className="map-panel" aria-label="Africa and Somalia priority map">
         <header className="topbar">
           <div>
-            <p className="eyebrow">Restoration command view</p>
-            <h2>Priority Heatmap</h2>
+            <p className="eyebrow">Africa context map</p>
+            <h2>Somalia Risk Focus</h2>
           </div>
           <div className="topbar-actions">
-            <span>Mock data</span>
-            <button>Export</button>
+            <span>Somalia data only</span>
+            <button type="button" onClick={() => setZoomed(true)}>Focus</button>
           </div>
         </header>
 
         <div className="map-stage">
-          <div className="somalia-map" role="img" aria-label="Stylized Somalia heatmap">
-            {districts.map((district, index) => (
-              <button
-                key={district.id}
-                className={`heat-point ${selected.id === district.id ? 'selected' : ''}`}
-                style={{
-                  '--x': `${districtPositions[index].x}%`,
-                  '--y': `${districtPositions[index].y}%`,
-                  '--score': district.priorityScore
-                }}
-                onClick={() => setSelectedId(district.id)}
-                aria-label={`${district.name}, priority score ${district.priorityScore}`}
-              >
-                <span>{district.name}</span>
-              </button>
-            ))}
+          <div className={`africa-map ${zoomed ? 'zoomed' : ''}`}>
+            <div className="africa-continent" aria-hidden="true" />
+            <div className="somalia-outline" aria-label="Somalia risk heatmap">
+              {districts.map((district, index) => {
+                const score = displayScore(district);
+                return (
+                  <button
+                    key={district.id}
+                    className={`risk-cell ${getRiskLevel(score).toLowerCase()} ${selected.id === district.id ? 'selected' : ''}`}
+                    style={{
+                      '--x': `${districtPositions[index].x}%`,
+                      '--y': `${districtPositions[index].y}%`
+                    }}
+                    onClick={() => setSelectedId(district.id)}
+                    aria-label={`${district.name}, ${getRiskLevel(score)} risk, score ${score}`}
+                  >
+                    <span>{district.name}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="map-controls" aria-label="Map tools">
-            <button>+</button>
-            <button>-</button>
-            <button>◎</button>
+          <div className="map-legend" aria-label="Risk legend">
+            <span className="low">Low</span>
+            <span className="medium">Medium</span>
+            <span className="high">High</span>
+            <span className="critical">Critical</span>
+          </div>
+
+          <div className="map-controls" aria-label="Map zoom tools">
+            <button type="button" onClick={() => setZoomed(true)}>+</button>
+            <button type="button" onClick={() => setZoomed(false)}>-</button>
+            <button type="button" onClick={() => setZoomed((value) => !value)}>
+              {zoomed ? 'AF' : 'SO'}
+            </button>
           </div>
 
           <div className="timeline">
-            <span>2022</span>
+            <span>Africa</span>
             <div><i /></div>
-            <span>2026 forecast</span>
+            <span>Zoom to Somalia</span>
           </div>
         </div>
       </section>
 
       <aside className="analytics-panel" aria-label="District analytics">
         <div className="analytics-header">
-          <span className={`risk-pill ${selected.riskLevel.toLowerCase()}`}>{selected.riskLevel}</span>
+          <span className={`risk-pill ${selectedRisk.toLowerCase()}`}>{selectedRisk}</span>
           <h2>{selected.name}</h2>
-          <p>{selected.region}</p>
+          <p>{selected.region} · Hakad priority assessment</p>
         </div>
 
         <div className="score-card">
           <span>Priority score</span>
-          <strong>{selected.priorityScore}</strong>
+          <strong>{selectedDisplayScore}</strong>
           <div className="score-track">
-            <i style={{ width: `${selected.priorityScore}%` }} />
+            <i style={{ width: `${selectedDisplayScore}%` }} />
           </div>
         </div>
 
         <section className="metrics-grid">
-          {metricLabels.map(([key, label]) => (
-            <article key={key} className="metric-card">
+          {dataLayers.map(([key, label]) => (
+            <article key={key} className={`metric-card ${activeLayers.includes(key) ? '' : 'muted'}`}>
               <span>{label}</span>
               <strong>{selected[key]}%</strong>
               <div>
@@ -267,15 +387,14 @@ function App() {
   );
 }
 
-const districtPositions = [
-  { x: 42, y: 78 },
-  { x: 45, y: 64 },
-  { x: 35, y: 57 },
-  { x: 31, y: 46 },
-  { x: 64, y: 27 },
-  { x: 54, y: 18 },
-  { x: 49, y: 39 },
-  { x: 39, y: 69 }
-];
+function getRiskLevel(score) {
+  if (score >= 85) return 'Critical';
+  if (score >= 70) return 'High';
+  if (score >= 50) return 'Medium';
+  return 'Low';
+}
 
-createRoot(document.getElementById('root')).render(<App />);
+const rootElement = document.getElementById('root');
+const root = window.__hakadRoot || createRoot(rootElement);
+window.__hakadRoot = root;
+root.render(<App />);
