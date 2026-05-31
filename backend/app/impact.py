@@ -14,7 +14,7 @@ Recommended output fields (percent-point deltas):
 
 from __future__ import annotations
 
-from .types import ImpactForecast, Intervention
+from .typing import ImpactForecast, Intervention
 
 
 def forecast_impact(indicators: dict, interventions: list[Intervention]) -> ImpactForecast:

@@ -12,7 +12,7 @@ Example rules:
 
 from __future__ import annotations
 
-from .types import Intervention
+from .typing import Intervention
 
 
 def recommend_interventions(indicators: dict) -> list[Intervention]:

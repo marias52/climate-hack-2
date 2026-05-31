@@ -14,7 +14,7 @@ All indicator inputs should be normalized to 0-100 first.
 
 from __future__ import annotations
 
-from .types import RiskCategory, ScoreWeights
+from .typing import RiskCategory, ScoreWeights
 
 DEFAULT_WEIGHTS: ScoreWeights = {
     "forestLoss": 0.35,
