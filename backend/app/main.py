@@ -9,7 +9,8 @@ This is a hackathon-friendly backend:
 """
 
 from __future__ import annotations
-
+from fastapi import Query
+import sqlite3
 import csv
 import re
 from functools import lru_cache
@@ -25,6 +26,7 @@ from .scoring import DEFAULT_WEIGHTS, categorize_risk, compute_priority_score, n
 
 ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_DIR = ROOT / "frontend"
+DB_PATH = Path(__file__).resolve().parent / "database.db"
 DIST_DIR = FRONTEND_DIR / "dist"
 CSV_PATH = Path(__file__).resolve().parent / "data" / "raw" / "district_indicators.csv"
 REGION_POP_PATH = Path(__file__).resolve().parent / "data" / "raw" / "region_population.csv"
@@ -55,6 +57,99 @@ REGION_ALIASES: dict[str, str] = {
     "Middle Shabelle": "Shabeellaha Dhexe",
     "Lower Shabelle": "Shabeellaha Hoose",
 }
+
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def seed_forest_tables() -> None:
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS adm1_metadata (
+        adm1_id TEXT PRIMARY KEY,
+        name TEXT
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS forest_extent (
+        adm1_id TEXT PRIMARY KEY,
+        iso TEXT,
+        forest_extent_ha REAL,
+        area_ha REAL
+    )
+    """)
+
+    adm1_count = cur.execute(
+        "SELECT COUNT(*) FROM adm1_metadata"
+    ).fetchone()[0]
+
+    if adm1_count == 0 and ADM1_META_PATH.exists():
+        with ADM1_META_PATH.open(
+            "r",
+            encoding="utf-8",
+            newline=""
+        ) as f:
+            reader = csv.DictReader(f)
+
+            for row in reader:
+                cur.execute(
+                    """
+                    INSERT OR REPLACE INTO adm1_metadata
+                    (adm1_id,name)
+                    VALUES (?,?)
+                    """,
+                    (
+                        row["adm1__id"],
+                        row["name"],
+                    ),
+                )
+
+    forest_count = cur.execute(
+        "SELECT COUNT(*) FROM forest_extent"
+    ).fetchone()[0]
+
+    if forest_count == 0 and FOREST_EXTENT_PATH.exists():
+        with FOREST_EXTENT_PATH.open(
+            "r",
+            encoding="utf-8",
+            newline=""
+        ) as f:
+            reader = csv.DictReader(f)
+
+            for row in reader:
+                cur.execute(
+                    """
+                    INSERT OR REPLACE INTO forest_extent
+                    (
+                        adm1_id,
+                        iso,
+                        forest_extent_ha,
+                        area_ha
+                    )
+                    VALUES (?,?,?,?)
+                    """,
+                    (
+                        row["adm1"],
+                        row["iso"],
+                        float(
+                            row["umd_tree_cover_extent_2010__ha"]
+                            or 0
+                        ),
+                        float(
+                            row["area__ha"]
+                            or 0
+                        ),
+                    ),
+                )
+
+    conn.commit()
+    conn.close()
+
 
 
 def _slugify(text: str) -> str:
@@ -270,6 +365,8 @@ def _attach_context(
 
 app = FastAPI(title="EcoRestore Somalia API", version="0.0.1")
 
+seed_forest_tables()
+
 @app.get("/")
 def index() -> dict[str, str]:
     """
@@ -282,6 +379,158 @@ def index() -> dict[str, str]:
         "status": "ok",
         "message": "Backend running. Start the React frontend with `cd frontend && npm install && npm run dev`.",
     }
+
+
+@app.get("/api/adm1")
+def get_adm1():
+
+    conn = get_db()
+
+    rows = conn.execute("""
+        SELECT *
+        FROM adm1_metadata
+        ORDER BY name
+    """).fetchall()
+
+    conn.close()
+
+    return {
+        "count": len(rows),
+        "regions": [dict(r) for r in rows]
+    }
+
+
+@app.get("/api/forests")
+def get_forests():
+
+    conn = get_db()
+
+    rows = conn.execute("""
+        SELECT *
+        FROM forest_extent
+    """).fetchall()
+
+    conn.close()
+
+    return {
+        "count": len(rows),
+        "forests": [dict(r) for r in rows]
+    }
+
+@app.get("/api/forests-region")
+def forests_region(
+    sort_by: str = Query(
+        default="forest_extent_ha",
+        description="forest_extent_ha, forest_cover_percent, area_ha, region",
+    ),
+    order: str = Query(
+        default="desc",
+        description="asc or desc",
+    ),
+):
+
+    allowed_sorts = {
+        "forest_extent_ha",
+        "forest_cover_percent",
+        "area_ha",
+        "region",
+    }
+
+    if sort_by not in allowed_sorts:
+        raise HTTPException(
+            status_code=400,
+            detail=f"sort_by must be one of {sorted(allowed_sorts)}",
+        )
+
+    if order.lower() not in {"asc", "desc"}:
+        raise HTTPException(
+            status_code=400,
+            detail="order must be asc or desc",
+        )
+
+    conn = get_db()
+
+    direction = "ASC" if order.lower() == "asc" else "DESC"
+
+    query = f"""
+        SELECT
+            a.adm1_id,
+            a.name AS region,
+            f.iso,
+            f.forest_extent_ha,
+            f.area_ha,
+
+            ROUND(
+                CASE
+                    WHEN f.area_ha > 0
+                    THEN (f.forest_extent_ha / f.area_ha) * 100
+                    ELSE 0
+                END,
+                2
+            ) AS forest_cover_percent
+
+        FROM adm1_metadata a
+        INNER JOIN forest_extent f
+            ON a.adm1_id = f.adm1_id
+
+        ORDER BY {sort_by} {direction}
+    """
+
+    rows = conn.execute(query).fetchall()
+
+    conn.close()
+
+    return {
+        "count": len(rows),
+        "sortBy": sort_by,
+        "order": order,
+        "regions": [dict(r) for r in rows],
+    }
+
+
+
+
+
+
+@app.get("/api/forests-region/{adm1_id}")
+def forest_region(adm1_id: str):
+
+    conn = get_db()
+
+    row = conn.execute("""
+        SELECT
+            a.adm1_id,
+            a.name AS region,
+            f.iso,
+            f.forest_extent_ha,
+            f.area_ha,
+
+            ROUND(
+                CASE
+                    WHEN f.area_ha > 0
+                    THEN (f.forest_extent_ha / f.area_ha) * 100
+                    ELSE 0
+                END,
+                2
+            ) AS forest_cover_percent
+
+        FROM adm1_metadata a
+        INNER JOIN forest_extent f
+            ON a.adm1_id = f.adm1_id
+
+        WHERE a.adm1_id = ?
+    """, (adm1_id,)).fetchone()
+
+    conn.close()
+
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Region not found"
+        )
+
+    return dict(row)
+
 
 
 @app.get("/api/districts")
@@ -385,3 +634,7 @@ def score(payload: dict[str, Any]) -> dict[str, Any]:
 # NOTE: This mount is added last so `/api/...` routes win.
 if DIST_DIR.exists():
     app.mount("/", StaticFiles(directory=str(DIST_DIR), html=True), name="frontend")
+
+
+
+
