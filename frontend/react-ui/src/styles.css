@@ -57,16 +57,80 @@ button {
 }
 
 .logo-scene {
+  position: relative;
   flex: 0 0 auto;
-  width: 92px;
-  height: 44px;
-  border-radius: 3px;
+  width: 90px;
+  height: 52px;
+  overflow: hidden;
+  border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   background:
-    linear-gradient(180deg, rgba(133, 190, 222, 0.94) 0 38%, rgba(218, 139, 73, 0.96) 39% 68%, rgba(149, 72, 36, 0.98) 69% 100%),
-    radial-gradient(ellipse at 58% 22%, #1c5c2b 0 31%, transparent 32%),
-    linear-gradient(90deg, transparent 0 46%, #3a2117 47% 52%, transparent 53%);
-  background-blend-mode: normal, multiply, normal;
+    radial-gradient(circle at 52% 12%, #236f2d 0 12%, transparent 21%),
+    linear-gradient(#9dd9ff 0 42%, #f2b16d 43% 68%, #c76a32 69% 100%);
+}
+
+.logo-scene::before,
+.logo-scene::after {
+  content: "";
+  position: absolute;
+}
+
+.logo-scene::before {
+  left: 3px;
+  right: 3px;
+  bottom: 10px;
+  height: 7px;
+  background:
+    radial-gradient(circle at 18% 40%, #0f1910 0 2px, transparent 3px),
+    radial-gradient(circle at 28% 40%, #f4eee1 0 2px, transparent 3px),
+    radial-gradient(circle at 38% 40%, #0f1910 0 2px, transparent 3px),
+    radial-gradient(circle at 58% 40%, #f4eee1 0 2px, transparent 3px),
+    radial-gradient(circle at 74% 40%, #0f1910 0 2px, transparent 3px);
+}
+
+.logo-scene::after {
+  left: 9px;
+  right: 9px;
+  top: 18px;
+  height: 4px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 4% 50%, #2b7b30 0 10px, transparent 11px),
+    radial-gradient(circle at 88% 50%, #2b7b30 0 10px, transparent 11px);
+}
+
+.tree-canopy {
+  position: absolute;
+  left: 24px;
+  top: 3px;
+  width: 52px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 45%, #6dab3d, #1f6b2f 72%);
+}
+
+.tree-trunk {
+  position: absolute;
+  left: 48px;
+  top: 22px;
+  width: 7px;
+  height: 23px;
+  border-radius: 7px 7px 0 0;
+  background: #4e2a18;
+}
+
+.people-row {
+  position: absolute;
+  left: 18px;
+  right: 14px;
+  bottom: 5px;
+  height: 9px;
+  background:
+    radial-gradient(circle at 12% 20%, #111 0 2px, transparent 3px),
+    radial-gradient(circle at 28% 20%, #fff 0 2px, transparent 3px),
+    radial-gradient(circle at 44% 20%, #111 0 2px, transparent 3px),
+    radial-gradient(circle at 66% 20%, #fff 0 2px, transparent 3px),
+    radial-gradient(circle at 84% 20%, #111 0 2px, transparent 3px);
 }
 
 .eyebrow {

@@ -195,7 +195,11 @@ function App() {
     <main className="dashboard-shell">
       <aside className="sidebar" aria-label="District priority list">
         <div className="brand-block">
-          <div className="logo-scene" aria-label="Hakad landscape logo" />
+          <div className="logo-scene" aria-label="Hakad landscape logo">
+            <span className="tree-canopy" />
+            <span className="tree-trunk" />
+            <span className="people-row" />
+          </div>
           <div>
             <p className="eyebrow">Restoration intelligence</p>
             <h1>Hakad</h1>
