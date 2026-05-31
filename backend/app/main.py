@@ -117,6 +117,7 @@ def _load_rows() -> list[dict[str, Any]]:
                 raise ValueError(f"Duplicate district id `{row_id}` derived from district name `{name}`.")
             seen_ids.add(row_id)
 
+<<<<<<< Updated upstream
             charcoal = _clamp_0_100(_to_float(r.get("charcoal_pressure"), field="charcoal_pressure", district=name))
             forest = _clamp_0_100(_to_float(r.get("forest_loss"), field="forest_loss", district=name))
             land = _clamp_0_100(_to_float(r.get("land_degradation"), field="land_degradation", district=name))
@@ -131,6 +132,173 @@ def _load_rows() -> list[dict[str, Any]]:
                     "landDegradation": land,
                     "communityVulnerability": vuln,
                 }
+=======
+        return {
+            "rows_inserted": len(records)
+        }
+
+    finally:
+        session.close()
+
+# ==================================================
+# GET FOREST DATA
+# ==================================================
+
+@app.get("/forest")
+async def get_forest():
+
+    session = SessionLocal()
+
+    try:
+
+        rows = session.query(ForestData).all()
+
+        return [
+            {
+                "id": row.id,
+                "iso": row.iso,
+                "adm1": row.adm1,
+                "tree_cover": row.umd_tree_cover_extent_2010_ha,
+                "area": row.area_ha
+            }
+            for row in rows
+        ]
+
+    finally:
+        session.close()
+
+# ==================================================
+# GET REGIONS
+# ==================================================
+
+@app.get("/regions")
+async def get_regions():
+
+    session = SessionLocal()
+
+    try:
+
+        rows = session.query(Region).all()
+
+        return [
+            {
+                "adm1__id": row.adm1__id,
+                "name": row.name
+            }
+            for row in rows
+        ]
+
+    finally:
+        session.close()
+
+# ==================================================
+# INNER JOIN
+# ==================================================
+
+# @app.get("/forest-with-regions")
+# async def forest_with_regions():
+
+#     session = SessionLocal()
+
+#     try:
+
+#         rows = (
+#             session.query(
+#                 ForestData.id,
+#                 ForestData.iso,
+#                 ForestData.adm1,
+#                 ForestData.umd_tree_cover_extent_2010_ha,
+#                 ForestData.area_ha,
+#                 Region.name
+#             )
+#             .join(
+#                 Region,
+#                 ForestData.adm1 == Region.adm1__id
+#             )
+#             .all()
+#         )
+
+#         return [
+#             {
+#                 "id": row.id,
+#                 "region": row.name,
+#                 "iso": row.iso,
+#                 "adm1": row.adm1,
+#                 "tree_cover": row.umd_tree_cover_extent_2010_ha,
+#                 "area": row.area_ha
+#             }
+#             for row in rows
+#         ]
+
+#     finally:
+#         session.close()
+
+# ==================================================
+# DELETE FOREST RECORD
+# ==================================================
+
+
+@app.get("/forest/{record_id}")
+async def get_forest_record(record_id: int):
+
+    session = SessionLocal()
+
+    try:
+
+        row = (
+            session.query(
+                ForestData.id,
+                ForestData.iso,
+                ForestData.adm1,
+                ForestData.umd_tree_cover_extent_2010_ha,
+                ForestData.area_ha,
+                Region.name
+            )
+            .join(
+                Region,
+                ForestData.adm1 == Region.adm1__id
+            )
+            .filter(ForestData.id == record_id)
+            .first()
+        )
+
+        if row is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Record not found"
+            )
+
+        return {
+            "id": row.id,
+            "region": row.name,
+            "iso": row.iso,
+            "adm1": row.adm1,
+            "tree_cover": row.umd_tree_cover_extent_2010_ha,
+            "area": row.area_ha
+        }
+
+    finally:
+        session.close()
+
+@app.get("/forest-with-regions")
+async def forest_with_regions(
+    sort_by: str = Query("region"),
+    order: str = Query("asc")
+):
+
+    session = SessionLocal()
+
+    try:
+
+        query = (
+            session.query(
+                ForestData.id,
+                ForestData.iso,
+                ForestData.adm1,
+                ForestData.umd_tree_cover_extent_2010_ha,
+                ForestData.area_ha,
+                Region.name
+>>>>>>> Stashed changes
             )
     return out
 
