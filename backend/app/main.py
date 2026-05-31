@@ -28,12 +28,31 @@ FRONTEND_DIR = ROOT / "frontend"
 DIST_DIR = FRONTEND_DIR / "dist"
 CSV_PATH = Path(__file__).resolve().parent / "data" / "raw" / "district_indicators.csv"
 
+REQUIRED_COLUMNS = {
+    "district",
+    "region",
+    "charcoal_pressure",
+    "forest_loss",
+    "land_degradation",
+    "vulnerability",
+}
+
 
 def _slugify(text: str) -> str:
     t = text.strip().lower().replace("_", "-")
     t = re.sub(r"[^a-z0-9-]+", "-", t)
     t = re.sub(r"-{2,}", "-", t).strip("-")
     return t or "unknown"
+
+def _to_float(value: Any, *, field: str, district: str) -> float:
+    try:
+        return float(value)
+    except Exception as e:
+        raise ValueError(f"Invalid number for `{field}` in district `{district}`: {value!r}") from e
+
+
+def _clamp_0_100(value: float) -> float:
+    return max(0.0, min(100.0, float(value)))
 
 
 @lru_cache(maxsize=1)
@@ -52,18 +71,39 @@ def _load_rows() -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     with CSV_PATH.open("r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
+        if not reader.fieldnames:
+            raise ValueError("CSV has no header row.")
+        present = {h.strip() for h in reader.fieldnames if h}
+        missing = sorted(REQUIRED_COLUMNS - present)
+        if missing:
+            raise ValueError(f"CSV missing required columns: {', '.join(missing)}")
+
+        seen_ids: set[str] = set()
         for r in reader:
             name = (r.get("district") or "").strip()
+            if not name:
+                # Skip blank rows rather than crashing the whole app.
+                continue
             region = (r.get("region") or "").strip()
+
+            row_id = _slugify(name)
+            if row_id in seen_ids:
+                raise ValueError(f"Duplicate district id `{row_id}` derived from district name `{name}`.")
+            seen_ids.add(row_id)
+
+            charcoal = _clamp_0_100(_to_float(r.get("charcoal_pressure"), field="charcoal_pressure", district=name))
+            forest = _clamp_0_100(_to_float(r.get("forest_loss"), field="forest_loss", district=name))
+            land = _clamp_0_100(_to_float(r.get("land_degradation"), field="land_degradation", district=name))
+            vuln = _clamp_0_100(_to_float(r.get("vulnerability"), field="vulnerability", district=name))
             out.append(
                 {
-                    "id": _slugify(name),
+                    "id": row_id,
                     "name": name,
                     "region": region,
-                    "charcoalPressure": float(r.get("charcoal_pressure") or 0),
-                    "forestLoss": float(r.get("forest_loss") or 0),
-                    "landDegradation": float(r.get("land_degradation") or 0),
-                    "communityVulnerability": float(r.get("vulnerability") or 0),
+                    "charcoalPressure": charcoal,
+                    "forestLoss": forest,
+                    "landDegradation": land,
+                    "communityVulnerability": vuln,
                 }
             )
     return out
@@ -87,7 +127,10 @@ def index() -> dict[str, str]:
 
 @app.get("/api/districts")
 def list_districts() -> dict[str, Any]:
-    rows = _load_rows()
+    try:
+        rows = _load_rows()
+    except (FileNotFoundError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     weights = normalize_weights(DEFAULT_WEIGHTS)
     enriched: list[dict[str, Any]] = []
     for d in rows:
@@ -99,7 +142,11 @@ def list_districts() -> dict[str, Any]:
 
 @app.get("/api/districts/{district_id}")
 def get_district(district_id: str) -> dict[str, Any]:
-    d = next((x for x in _load_rows() if x["id"] == district_id), None)
+    try:
+        rows = _load_rows()
+    except (FileNotFoundError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    d = next((x for x in rows if x["id"] == district_id), None)
     if not d:
         raise HTTPException(status_code=404, detail="district not found")
     score = compute_priority_score(d, DEFAULT_WEIGHTS)
@@ -108,7 +155,11 @@ def get_district(district_id: str) -> dict[str, Any]:
 
 @app.get("/api/districts/{district_id}/package")
 def get_package(district_id: str) -> dict[str, Any]:
-    d = next((x for x in _load_rows() if x["id"] == district_id), None)
+    try:
+        rows = _load_rows()
+    except (FileNotFoundError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    d = next((x for x in rows if x["id"] == district_id), None)
     if not d:
         raise HTTPException(status_code=404, detail="district not found")
     score = compute_priority_score(d, DEFAULT_WEIGHTS)
