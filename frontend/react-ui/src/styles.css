@@ -14,8 +14,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 46% 10%, rgba(142, 184, 97, 0.16), transparent 34rem),
-    linear-gradient(135deg, #080a09 0%, #171b19 54%, #080908 100%);
+    linear-gradient(135deg, #070808 0%, #111413 54%, #080908 100%);
 }
 
 button,
@@ -38,9 +37,9 @@ button {
 .sidebar,
 .analytics-panel,
 .map-stage {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(20, 23, 22, 0.9);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(17, 19, 19, 0.96);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
 }
 
 .sidebar,
@@ -63,8 +62,8 @@ button {
   width: 90px;
   height: 52px;
   overflow: hidden;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   background:
     radial-gradient(circle at 52% 12%, #236f2d 0 12%, transparent 21%),
     linear-gradient(#9dd9ff 0 42%, #f2b16d 43% 68%, #c76a32 69% 100%);
@@ -152,9 +151,9 @@ p {
 
 h1 {
   margin-bottom: 0;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 2rem;
+  font-size: 1.75rem;
   line-height: 1;
+  letter-spacing: 0;
 }
 
 .search-box {
@@ -167,7 +166,7 @@ h1 {
 .search-box input {
   width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  border-radius: 5px;
   padding: 12px 13px;
   outline: none;
   background: #0f1211;
@@ -182,7 +181,7 @@ h1 {
 .region-panel {
   margin-top: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
+  border-radius: 5px;
   padding: 12px;
   background: #111412;
 }
@@ -228,7 +227,7 @@ h1 {
 
 .region-chips button {
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
+  border-radius: 4px;
   padding: 7px 10px;
   background: #171b19;
   color: #d8ddd4;
@@ -264,7 +263,7 @@ h1 {
   width: 100%;
   min-height: 68px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
+  border-radius: 5px;
   padding: 12px;
   background: #151817;
   color: #f4f7f0;
@@ -330,186 +329,124 @@ h1 {
 .topbar-actions span,
 .topbar-actions button {
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
+  border-radius: 5px;
   padding: 9px 12px;
   background: rgba(255, 255, 255, 0.06);
   color: #dce5dc;
 }
 
 .topbar-actions button {
-  background: #d5e6b1;
-  color: #111411;
+  background: #26332f;
+  color: #e6eee8;
+  border-color: rgba(126, 166, 151, 0.42);
   font-weight: 800;
 }
 
 .map-stage {
   position: relative;
   overflow: hidden;
-  min-height: 660px;
-  border-radius: 8px;
+  min-height: 620px;
+  border-radius: 5px;
   background:
     linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    radial-gradient(circle at 64% 45%, rgba(77, 104, 76, 0.24), transparent 24rem),
-    #101312;
-  background-size: 72px 72px, 72px 72px, auto, auto;
+    #111412;
+  background-size: 72px 72px;
 }
 
-.africa-map {
+.somalia-map {
   position: absolute;
-  inset: 26px 40px 76px;
-  transform-origin: 80% 44%;
+  inset: 42px 70px 74px;
+  clip-path: polygon(55% 0%, 73% 7%, 78% 22%, 88% 34%, 82% 49%, 71% 59%, 62% 75%, 49% 95%, 38% 86%, 32% 67%, 20% 55%, 29% 39%, 34% 19%);
+  background:
+    radial-gradient(circle at 42% 78%, rgba(255, 59, 54, 0.88), transparent 15%),
+    radial-gradient(circle at 43% 62%, rgba(255, 122, 48, 0.86), transparent 16%),
+    radial-gradient(circle at 32% 48%, rgba(244, 196, 71, 0.78), transparent 13%),
+    radial-gradient(circle at 62% 27%, rgba(255, 170, 56, 0.76), transparent 14%),
+    radial-gradient(circle at 52% 18%, rgba(200, 238, 120, 0.58), transparent 13%),
+    linear-gradient(150deg, #213426, #50693d 45%, #a13a34 100%);
+  filter: saturate(1.2);
+  transform-origin: center;
   transition: transform 240ms ease;
 }
 
-.africa-map.zoomed {
-  transform: scale(1.85) translate(-22%, 2%);
+.somalia-map.zoomed {
+  transform: scale(1.22);
 }
 
-.africa-continent {
-  position: absolute;
-  left: 13%;
-  top: 5%;
-  width: 62%;
-  height: 88%;
-  clip-path: polygon(42% 0%, 57% 3%, 69% 12%, 73% 25%, 86% 38%, 82% 52%, 71% 59%, 65% 73%, 54% 94%, 42% 100%, 31% 89%, 21% 70%, 13% 58%, 18% 39%, 25% 24%, 31% 10%);
-  background:
-    linear-gradient(120deg, rgba(255,255,255,0.12), transparent 28%),
-    #28302b;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: inset -38px -22px 80px rgba(0, 0, 0, 0.28);
-}
-
-.africa-continent::before {
+.somalia-map::before {
   content: "";
   position: absolute;
-  inset: 11% 10% 8% 12%;
-  opacity: 0.24;
-  background:
-    linear-gradient(90deg, transparent 47%, rgba(255,255,255,0.45) 48% 49%, transparent 50%),
-    linear-gradient(0deg, transparent 57%, rgba(255,255,255,0.45) 58% 59%, transparent 60%);
+  inset: 0;
+  background-image: linear-gradient(120deg, rgba(255,255,255,0.22), transparent 30%, rgba(0,0,0,0.32));
+  opacity: 0.45;
 }
 
-.somalia-outline {
-  position: absolute;
-  left: 60%;
-  top: 16%;
-  width: 25%;
-  height: 66%;
-  clip-path: polygon(37% 0%, 59% 7%, 74% 25%, 83% 38%, 78% 49%, 67% 61%, 58% 75%, 44% 100%, 31% 90%, 26% 74%, 16% 60%, 23% 43%, 26% 22%);
-  background:
-    radial-gradient(circle at 79% 70%, rgba(183, 21, 26, 0.9), transparent 16%),
-    radial-gradient(circle at 78% 61%, rgba(222, 76, 47, 0.84), transparent 16%),
-    radial-gradient(circle at 71% 54%, rgba(235, 143, 62, 0.8), transparent 15%),
-    radial-gradient(circle at 77% 29%, rgba(255, 220, 142, 0.75), transparent 16%),
-    linear-gradient(155deg, #d9f4ff 0%, #fff0c5 44%, #f0c8bd 76%, #c93232 100%);
-  outline: 2px solid rgba(255, 255, 255, 0.55);
-  box-shadow: 0 0 42px rgba(255, 80, 45, 0.3);
-}
-
-.somalia-outline::before {
-  content: "Somalia";
-  position: absolute;
-  left: 38%;
-  top: 45%;
-  color: rgba(255, 255, 255, 0.76);
-  font-size: 0.76rem;
-  font-weight: 900;
-  text-shadow: 0 2px 8px #000;
-}
-
-.risk-cell {
+.heat-point {
   position: absolute;
   left: var(--x);
   top: var(--y);
-  width: 17px;
-  height: 17px;
+  width: 14px;
+  height: 14px;
   border: 2px solid #151817;
   border-radius: 50%;
+  background: hsl(calc(92 - (var(--score) * 0.8)) 92% 58%);
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.1), 0 0 25px rgba(255, 90, 50, 0.42);
+  box-shadow: 0 0 0 7px rgba(214, 255, 87, 0.12), 0 0 28px rgba(255, 119, 38, 0.55);
 }
 
-.risk-cell.selected {
-  width: 24px;
-  height: 24px;
+.heat-point.selected {
+  width: 22px;
+  height: 22px;
   background: #ffffff;
-  box-shadow: 0 0 0 11px rgba(255, 255, 255, 0.16), 0 0 40px rgba(255, 255, 255, 0.75);
+  box-shadow: 0 0 0 10px rgba(214, 255, 87, 0.22), 0 0 42px rgba(214, 255, 87, 0.8);
 }
 
-.risk-cell.low {
-  background: #d8f2fb;
-}
-
-.risk-cell.medium {
-  background: #fff0c5;
-}
-
-.risk-cell.high {
-  background: #f1d1c8;
-}
-
-.risk-cell.critical {
-  background: #c93232;
-}
-
-.risk-cell span {
+.heat-point span {
   position: absolute;
-  left: 20px;
+  left: 18px;
   top: -11px;
   white-space: nowrap;
   color: #ffffff;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   text-shadow: 0 2px 8px #000000;
 }
 
-.map-legend,
 .map-controls,
 .timeline {
   position: absolute;
   display: flex;
-  border-radius: 8px;
-  background: rgba(8, 10, 9, 0.78);
+  border-radius: 5px;
+  background: rgba(14, 16, 16, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(12px);
 }
 
-.map-legend {
-  left: 18px;
-  top: 18px;
-  gap: 8px;
-  padding: 10px;
-}
-
-.map-legend span,
 .risk-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 58px;
   border: 1px solid rgba(0, 0, 0, 0.14);
-  border-radius: 999px;
+  border-radius: 4px;
   padding: 7px 10px;
   color: #111411;
   font-size: 0.78rem;
   font-weight: 900;
 }
 
-.map-legend .low,
 .risk-pill.low {
   background: #d8f2fb;
 }
 
-.map-legend .medium,
 .risk-pill.medium {
   background: #fff0c5;
 }
 
-.map-legend .high,
 .risk-pill.high {
   background: #f1d1c8;
 }
 
-.map-legend .critical,
 .risk-pill.critical {
   background: #f09a91;
 }
@@ -571,8 +508,8 @@ h1 {
 .recommendation,
 .impact-card {
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  background: #131715;
+  border-radius: 5px;
+  background: #131615;
 }
 
 .score-card {
@@ -674,8 +611,7 @@ h1 {
     gap: 12px;
   }
 
-  .topbar-actions,
-  .map-legend {
+  .topbar-actions {
     flex-wrap: wrap;
   }
 

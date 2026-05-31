@@ -137,14 +137,14 @@ const dataLayers = [
 ];
 
 const districtPositions = [
-  { x: 79, y: 70 },
-  { x: 78, y: 61 },
-  { x: 72, y: 58 },
-  { x: 70, y: 50 },
-  { x: 82, y: 29 },
-  { x: 77, y: 22 },
-  { x: 77, y: 43 },
-  { x: 74, y: 66 }
+  { x: 42, y: 78 },
+  { x: 45, y: 64 },
+  { x: 35, y: 57 },
+  { x: 31, y: 46 },
+  { x: 64, y: 27 },
+  { x: 54, y: 18 },
+  { x: 49, y: 39 },
+  { x: 39, y: 69 }
 ];
 
 function App() {
@@ -300,42 +300,31 @@ function App() {
         </header>
 
         <div className="map-stage">
-          <div className={`africa-map ${zoomed ? 'zoomed' : ''}`}>
-            <div className="africa-continent" aria-hidden="true" />
-            <div className="somalia-outline" aria-label="Somalia risk heatmap">
-              {districts.map((district, index) => {
-                const score = displayScore(district);
-                return (
-                  <button
-                    key={district.id}
-                    className={`risk-cell ${getRiskLevel(score).toLowerCase()} ${selected.id === district.id ? 'selected' : ''}`}
-                    style={{
-                      '--x': `${districtPositions[index].x}%`,
-                      '--y': `${districtPositions[index].y}%`
-                    }}
-                    onClick={() => setSelectedId(district.id)}
-                    aria-label={`${district.name}, ${getRiskLevel(score)} risk, score ${score}`}
-                  >
-                    <span>{district.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="map-legend" aria-label="Risk legend">
-            <span className="low">Low</span>
-            <span className="medium">Medium</span>
-            <span className="high">High</span>
-            <span className="critical">Critical</span>
+          <div className={`somalia-map ${zoomed ? 'zoomed' : ''}`} role="img" aria-label="Stylized Somalia heatmap">
+            {districts.map((district, index) => {
+              const score = displayScore(district);
+              return (
+                <button
+                  key={district.id}
+                  className={`heat-point ${selected.id === district.id ? 'selected' : ''}`}
+                  style={{
+                    '--x': `${districtPositions[index].x}%`,
+                    '--y': `${districtPositions[index].y}%`,
+                    '--score': score
+                  }}
+                  onClick={() => setSelectedId(district.id)}
+                  aria-label={`${district.name}, priority score ${score}`}
+                >
+                  <span>{district.name}</span>
+                </button>
+              );
+            })}
           </div>
 
           <div className="map-controls" aria-label="Map zoom tools">
             <button type="button" onClick={() => setZoomed(true)}>+</button>
             <button type="button" onClick={() => setZoomed(false)}>-</button>
-            <button type="button" onClick={() => setZoomed((value) => !value)}>
-              {zoomed ? 'AF' : 'SO'}
-            </button>
+            <button type="button" onClick={() => setZoomed((value) => !value)}>◎</button>
           </div>
 
           <div className="timeline">

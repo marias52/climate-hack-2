@@ -16,7 +16,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -206,7 +206,7 @@ def _load_forest_extent_by_adm1() -> dict[str, dict[str, float]]:
     `app/treecover_extent_2010_by_region__ha.csv`
 
     Returns:
-    - { "10": { "extentHa": 123.0, "areaHa": 456.0 }, ... }
+    - { "10": { "iso": "SOM", "extentHa": 123.0, "areaHa": 456.0 }, ... }
     """
     if not FOREST_EXTENT_PATH.exists():
         return {}
@@ -227,9 +227,10 @@ def _load_forest_extent_by_adm1() -> dict[str, dict[str, float]]:
             adm1 = (r.get("adm1") or "").strip().strip('"')
             if not adm1:
                 continue
+            iso = str(r.get("iso") or "").strip().strip('"')
             extent = float(r.get("umd_tree_cover_extent_2010__ha") or 0.0)
             area = float(r.get("area__ha") or 0.0)
-            out[adm1] = {"extentHa": extent, "areaHa": area}
+            out[adm1] = {"iso": iso, "extentHa": extent, "areaHa": area}
         return out
 
 
@@ -319,6 +320,120 @@ def list_districts() -> dict[str, Any]:
         enriched.append({**base, "priorityScore": score, "riskCategory": categorize_risk(score)})
     enriched.sort(key=lambda x: float(x["priorityScore"]), reverse=True)
     return {"districts": enriched, "weights": weights}
+
+
+@app.get("/api/adm1")
+def list_adm1_regions() -> dict[str, Any]:
+    """
+    Convenience endpoint to inspect the colleague ADM1 mapping.
+    Data source: `app/adm1_metadata.csv`.
+    """
+    try:
+        meta = _load_adm1_metadata()  # {name -> id}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    regions = [{"adm1_id": adm1_id, "name": name} for name, adm1_id in meta.items()]
+    regions.sort(key=lambda r: r["name"])
+    return {"count": len(regions), "regions": regions}
+
+
+@app.get("/api/forests")
+def list_forest_rows() -> dict[str, Any]:
+    """
+    Convenience endpoint to inspect the colleague forest baseline dataset.
+    Data source: `app/treecover_extent_2010_by_region__ha.csv`.
+    """
+    try:
+        forest = _load_forest_extent_by_adm1()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    rows = [
+        {"adm1_id": adm1_id, "iso": v.get("iso", ""), "forest_extent_ha": v["extentHa"], "area_ha": v["areaHa"]}
+        for adm1_id, v in forest.items()
+    ]
+    return {"count": len(rows), "forests": rows}
+
+
+@app.get("/api/forests-region")
+def forests_by_region(
+    sort_by: str = Query(
+        default="forest_extent_ha",
+        description="forest_extent_ha, forest_cover_percent, area_ha, region",
+    ),
+    order: str = Query(
+        default="desc",
+        description="asc or desc",
+    ),
+) -> dict[str, Any]:
+    """
+    Region-level forest baseline summary (joined from colleague datasets).
+    Mirrors the useful debugging endpoints from the sqlite prototype, but uses CSVs directly.
+    """
+    allowed_sorts = {"forest_extent_ha", "forest_cover_percent", "area_ha", "region"}
+    if sort_by not in allowed_sorts:
+        raise HTTPException(status_code=400, detail=f"sort_by must be one of {sorted(allowed_sorts)}")
+    if order.lower() not in {"asc", "desc"}:
+        raise HTTPException(status_code=400, detail="order must be asc or desc")
+
+    try:
+        meta = _load_adm1_metadata()  # {name -> id}
+        forest = _load_forest_extent_by_adm1()  # {id -> {iso, extentHa, areaHa}}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    # Invert meta to {id -> name}
+    id_to_name = {adm1_id: name for name, adm1_id in meta.items()}
+
+    regions: list[dict[str, Any]] = []
+    for adm1_id, v in forest.items():
+        region = id_to_name.get(adm1_id, "")
+        extent = float(v.get("extentHa", 0.0))
+        area = float(v.get("areaHa", 0.0))
+        cover_percent = round((extent / area) * 100.0, 2) if area > 0 else 0.0
+        regions.append(
+            {
+                "adm1_id": adm1_id,
+                "region": region,
+                "iso": v.get("iso", ""),
+                "forest_extent_ha": extent,
+                "area_ha": area,
+                "forest_cover_percent": cover_percent,
+            }
+        )
+
+    reverse = order.lower() == "desc"
+    regions.sort(key=lambda r: r.get(sort_by) or 0, reverse=reverse)
+    return {"count": len(regions), "sortBy": sort_by, "order": order, "regions": regions}
+
+
+@app.get("/api/forests-region/{adm1_id}")
+def forest_region(adm1_id: str) -> dict[str, Any]:
+    """Get a single ADM1 region's forest baseline summary."""
+    try:
+        meta = _load_adm1_metadata()
+        forest = _load_forest_extent_by_adm1()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    id_to_name = {v: k for k, v in meta.items()}
+    v = forest.get(adm1_id)
+    if not v:
+        raise HTTPException(status_code=404, detail="Region not found")
+
+    extent = float(v.get("extentHa", 0.0))
+    area = float(v.get("areaHa", 0.0))
+    cover_percent = round((extent / area) * 100.0, 2) if area > 0 else 0.0
+
+    return {
+        "adm1_id": adm1_id,
+        "region": id_to_name.get(adm1_id, ""),
+        "iso": v.get("iso", ""),
+        "forest_extent_ha": extent,
+        "area_ha": area,
+        "forest_cover_percent": cover_percent,
+    }
 
 
 @app.get("/api/districts/{district_id}")
