@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .impact import forecast_impact
@@ -255,8 +256,13 @@ def _attach_context(
         area = float(forest_by_adm1[adm1_id]["areaHa"])
 
     # "Potential" is a normalized 0-1 value used to slightly weight forest loss in scoring.
-    max_extent = max((v["extentHa"] for v in forest_by_adm1.values()), default=0.0) or 0.0
-    potential = (extent / max_extent) if max_extent > 0 else 0.0
+    # Use forest cover share (extent/area) rather than raw extent to avoid huge regions dominating.
+    cover = (extent / area) if area > 0 else 0.0
+    max_cover = max(
+        ((v["extentHa"] / v["areaHa"]) for v in forest_by_adm1.values() if float(v["areaHa"]) > 0),
+        default=0.0,
+    ) or 0.0
+    potential = (cover / max_cover) if max_cover > 0 else 0.0
 
     return {
         **d,
@@ -264,24 +270,30 @@ def _attach_context(
         "estimatedPeopleAtRisk": people_at_risk,
         "regionForestExtent2010Ha": extent,
         "regionAreaHa": area,
+        "regionForestCover2010": cover,
         "regionForestPotential": potential,
     }
 
 
 app = FastAPI(title="EcoRestore Somalia API", version="0.0.1")
 
+if (FRONTEND_DIR / "assets").exists():
+    # Serve the simple static frontend (non-React) during hackathon dev.
+    # It calls the backend via same-origin `/api/...` paths.
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "assets")), name="assets")
+
 @app.get("/")
-def index() -> dict[str, str]:
+def index() -> Any:
     """
     When `frontend/dist/` exists (after `npm run build`), FastAPI serves the React app.
     During development, run the frontend dev server separately (`npm run dev`).
     """
     if DIST_DIR.exists():
         return {"status": "ok"}
-    return {
-        "status": "ok",
-        "message": "Backend running. Start the React frontend with `cd frontend && npm install && npm run dev`.",
-    }
+    index_path = FRONTEND_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    return {"status": "ok", "message": "Backend running. No frontend found in `frontend/`."}
 
 
 @app.get("/api/districts")
