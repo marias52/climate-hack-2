@@ -195,11 +195,7 @@ function App() {
     <main className="dashboard-shell">
       <aside className="sidebar" aria-label="District priority list">
         <div className="brand-block">
-          <div className="logo-scene" aria-label="Hakad landscape logo">
-            <span className="tree-canopy" />
-            <span className="tree-trunk" />
-            <span className="people-row" />
-          </div>
+          <div className="logo-scene" aria-label="Hakad landscape logo" />
           <div>
             <p className="eyebrow">Restoration intelligence</p>
             <h1>Hakad</h1>
@@ -301,7 +297,21 @@ function App() {
 
         <div className="map-stage">
           <div className={`africa-map ${zoomed ? 'zoomed' : ''}`}>
-            <div className="africa-continent" aria-hidden="true" />
+            <svg className="africa-basemap" viewBox="0 0 620 640" role="img" aria-label="Africa basemap with Somalia highlighted">
+              <rect width="620" height="640" className="map-water" />
+              <path className="land" d="M252 25 335 42 407 84 437 151 517 225 495 319 430 361 394 448 330 606 255 633 188 563 129 439 71 366 96 248 143 143 187 65Z" />
+              <path className="land-outline" d="M252 25 335 42 407 84 437 151 517 225 495 319 430 361 394 448 330 606 255 633 188 563 129 439 71 366 96 248 143 143 187 65Z" />
+              <path className="boundary" d="M188 65 226 136 214 222 258 292 243 395 286 485 255 633" />
+              <path className="boundary" d="M143 143 225 156 318 129 407 84" />
+              <path className="boundary" d="M96 248 196 252 286 222 377 241 517 225" />
+              <path className="boundary" d="M71 366 177 344 258 292 363 318 495 319" />
+              <path className="boundary" d="M129 439 243 395 347 407 430 361" />
+              <path className="boundary" d="M188 563 286 485 394 448" />
+              <path className="boundary" d="M335 42 318 129 377 241 363 318 347 407 394 448" />
+              <path className="country-detail" d="M435 122 492 112 535 150 525 209 517 225" />
+              <path className="country-detail" d="M421 335 480 381 472 445 430 485 394 448" />
+              <path className="somalia-border" d="M455 164 505 177 541 225 563 270 551 311 517 350 492 395 455 500 418 462 404 397 371 340 392 275 400 201Z" />
+            </svg>
             <div className="somalia-outline" aria-label="Somalia risk heatmap">
               {districts.map((district, index) => {
                 const score = displayScore(district);
