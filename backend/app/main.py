@@ -28,6 +28,8 @@ FRONTEND_DIR = ROOT / "frontend"
 DIST_DIR = FRONTEND_DIR / "dist"
 CSV_PATH = Path(__file__).resolve().parent / "data" / "raw" / "district_indicators.csv"
 REGION_POP_PATH = Path(__file__).resolve().parent / "data" / "raw" / "region_population.csv"
+ADM1_META_PATH = Path(__file__).resolve().parent / "adm1_metadata.csv"
+FOREST_EXTENT_PATH = Path(__file__).resolve().parent / "treecover_extent_2010_by_region__ha.csv"
 
 REQUIRED_COLUMNS = {
     "district",
@@ -39,6 +41,20 @@ REQUIRED_COLUMNS = {
 }
 
 REGION_POP_REQUIRED_COLUMNS = {"region", "population"}
+
+ADM1_REQUIRED_COLUMNS = {"name", "adm1__id"}
+FOREST_REQUIRED_COLUMNS = {"iso", "adm1", "umd_tree_cover_extent_2010__ha", "area__ha"}
+
+# Map "English" region names used in our CSVs to the ADM1 names used by the colleague dataset.
+REGION_ALIASES: dict[str, str] = {
+    "Banadir": "Banaadir",
+    "Galgaduud": "Galguduud",
+    "Hiraan": "Hiiraan",
+    "Middle Juba": "Jubbada Dhexe",
+    "Lower Juba": "Jubbada Hoose",
+    "Middle Shabelle": "Shabeellaha Dhexe",
+    "Lower Shabelle": "Shabeellaha Hoose",
+}
 
 
 def _slugify(text: str) -> str:
@@ -152,12 +168,104 @@ def _load_region_population() -> dict[str, int]:
         return out
 
 
-def _attach_population(d: dict[str, Any], region_pop: dict[str, int]) -> dict[str, Any]:
+@lru_cache(maxsize=1)
+def _load_adm1_metadata() -> dict[str, str]:
+    """
+    Reads colleague dataset mapping:
+    `app/adm1_metadata.csv` columns: `name,adm1__id`
+
+    Returns:
+    - { "Banaadir": "3", ... }
+    """
+    if not ADM1_META_PATH.exists():
+        return {}
+
+    with ADM1_META_PATH.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        if not reader.fieldnames:
+            raise ValueError("adm1_metadata.csv has no header row.")
+        present = {h.strip() for h in reader.fieldnames if h}
+        missing = sorted(ADM1_REQUIRED_COLUMNS - present)
+        if missing:
+            raise ValueError(f"adm1_metadata.csv missing required columns: {', '.join(missing)}")
+
+        out: dict[str, str] = {}
+        for r in reader:
+            name = (r.get("name") or "").strip().strip('"')
+            adm1 = (r.get("adm1__id") or "").strip().strip('"')
+            if name and adm1:
+                out[name] = adm1
+        return out
+
+
+@lru_cache(maxsize=1)
+def _load_forest_extent_by_adm1() -> dict[str, dict[str, float]]:
+    """
+    Reads colleague dataset:
+    `app/treecover_extent_2010_by_region__ha.csv`
+
+    Returns:
+    - { "10": { "extentHa": 123.0, "areaHa": 456.0 }, ... }
+    """
+    if not FOREST_EXTENT_PATH.exists():
+        return {}
+
+    with FOREST_EXTENT_PATH.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        if not reader.fieldnames:
+            raise ValueError("treecover_extent_2010_by_region__ha.csv has no header row.")
+        present = {h.strip() for h in reader.fieldnames if h}
+        missing = sorted(FOREST_REQUIRED_COLUMNS - present)
+        if missing:
+            raise ValueError(
+                f"treecover_extent_2010_by_region__ha.csv missing required columns: {', '.join(missing)}"
+            )
+
+        out: dict[str, dict[str, float]] = {}
+        for r in reader:
+            adm1 = (r.get("adm1") or "").strip().strip('"')
+            if not adm1:
+                continue
+            extent = float(r.get("umd_tree_cover_extent_2010__ha") or 0.0)
+            area = float(r.get("area__ha") or 0.0)
+            out[adm1] = {"extentHa": extent, "areaHa": area}
+        return out
+
+
+def _attach_context(
+    d: dict[str, Any],
+    region_pop: dict[str, int],
+    adm1_meta: dict[str, str],
+    forest_by_adm1: dict[str, dict[str, float]],
+) -> dict[str, Any]:
     rp = region_pop.get(d.get("region", ""), 0)
     vuln = float(d.get("communityVulnerability", 0.0) or 0.0)
     # Simple MVP heuristic: vulnerable share of region population.
     people_at_risk = int(round(rp * max(0.0, min(100.0, vuln)) / 100.0))
-    return {**d, "regionPopulation": rp, "estimatedPeopleAtRisk": people_at_risk}
+
+    # Colleague forest dataset is keyed by ADM1 regions. Use aliases to match names.
+    region_name = str(d.get("region", "") or "")
+    adm1_name = REGION_ALIASES.get(region_name, region_name)
+    adm1_id = adm1_meta.get(adm1_name)
+
+    extent = 0.0
+    area = 0.0
+    if adm1_id and adm1_id in forest_by_adm1:
+        extent = float(forest_by_adm1[adm1_id]["extentHa"])
+        area = float(forest_by_adm1[adm1_id]["areaHa"])
+
+    # "Potential" is a normalized 0-1 value used to slightly weight forest loss in scoring.
+    max_extent = max((v["extentHa"] for v in forest_by_adm1.values()), default=0.0) or 0.0
+    potential = (extent / max_extent) if max_extent > 0 else 0.0
+
+    return {
+        **d,
+        "regionPopulation": rp,
+        "estimatedPeopleAtRisk": people_at_risk,
+        "regionForestExtent2010Ha": extent,
+        "regionAreaHa": area,
+        "regionForestPotential": potential,
+    }
 
 
 app = FastAPI(title="EcoRestore Somalia API", version="0.0.1")
@@ -186,11 +294,16 @@ def list_districts() -> dict[str, Any]:
         region_pop = _load_region_population()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    try:
+        adm1_meta = _load_adm1_metadata()
+        forest_by_adm1 = _load_forest_extent_by_adm1()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     weights = normalize_weights(DEFAULT_WEIGHTS)
     enriched: list[dict[str, Any]] = []
     for d in rows:
-        score = compute_priority_score(d, weights)
-        base = _attach_population(d, region_pop)
+        base = _attach_context(d, region_pop, adm1_meta, forest_by_adm1)
+        score = compute_priority_score(base, weights)
         enriched.append({**base, "priorityScore": score, "riskCategory": categorize_risk(score)})
     enriched.sort(key=lambda x: float(x["priorityScore"]), reverse=True)
     return {"districts": enriched, "weights": weights}
@@ -206,11 +319,16 @@ def get_district(district_id: str) -> dict[str, Any]:
         region_pop = _load_region_population()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    try:
+        adm1_meta = _load_adm1_metadata()
+        forest_by_adm1 = _load_forest_extent_by_adm1()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     d = next((x for x in rows if x["id"] == district_id), None)
     if not d:
         raise HTTPException(status_code=404, detail="district not found")
-    score = compute_priority_score(d, DEFAULT_WEIGHTS)
-    base = _attach_population(d, region_pop)
+    base = _attach_context(d, region_pop, adm1_meta, forest_by_adm1)
+    score = compute_priority_score(base, DEFAULT_WEIGHTS)
     return {**base, "priorityScore": score, "riskCategory": categorize_risk(score)}
 
 
@@ -224,11 +342,16 @@ def get_package(district_id: str) -> dict[str, Any]:
         region_pop = _load_region_population()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    try:
+        adm1_meta = _load_adm1_metadata()
+        forest_by_adm1 = _load_forest_extent_by_adm1()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     d = next((x for x in rows if x["id"] == district_id), None)
     if not d:
         raise HTTPException(status_code=404, detail="district not found")
-    base = _attach_population(d, region_pop)
-    score = compute_priority_score(d, DEFAULT_WEIGHTS)
+    base = _attach_context(d, region_pop, adm1_meta, forest_by_adm1)
+    score = compute_priority_score(base, DEFAULT_WEIGHTS)
     recs = recommend_interventions(base)
     impact = forecast_impact(base, recs)
     return {

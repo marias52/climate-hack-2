@@ -57,6 +57,15 @@ def compute_priority_score(indicators: dict, weights: ScoreWeights | None = None
     land = clamp100(indicators.get("landDegradation", 0.0)) / 100.0
     community = clamp100(indicators.get("communityVulnerability", 0.0)) / 100.0
 
+    # Optional context from colleague dataset (0-1): regions with more baseline tree cover
+    # slightly increase the weight of forest loss (more forest at stake).
+    try:
+        forest_potential = float(indicators.get("regionForestPotential", 0.0) or 0.0)
+    except Exception:
+        forest_potential = 0.0
+    forest_potential = max(0.0, min(1.0, forest_potential))
+    forest = forest * (0.8 + 0.2 * forest_potential)
+
     score01 = (
         w["forestLoss"] * forest
         + w["charcoalPressure"] * charcoal
