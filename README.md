@@ -28,6 +28,19 @@ Default weights:
 2. Open the dashboard:
    - `http://localhost:8000`
 
+## Run the React Frontend
+The new React/Vite dashboard lives in `frontend/react-ui/` and uses mock data for now.
+
+1. Install dependencies:
+   - `cd frontend/react-ui`
+   - `npm install`
+2. Start the React dev server:
+   - `npm run dev`
+3. Open the Vite URL shown in the terminal, usually:
+   - `http://localhost:5173`
+
+The existing static frontend in `frontend/` is unchanged and can still be served by the FastAPI app.
+
 ## Key Files
 - `backend/app/data/districts.mock.json` mock district indicators
 - `backend/app/scoring.py` priority score + risk categories
@@ -36,3 +49,4 @@ Default weights:
 - `frontend/index.html` dashboard shell
 - `frontend/assets/app.js` dashboard logic
 - `frontend/assets/styles.css` styling
+- `frontend/react-ui/` React/Vite dashboard prototype
