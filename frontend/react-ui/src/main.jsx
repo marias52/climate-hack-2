@@ -137,14 +137,14 @@ const dataLayers = [
 ];
 
 const districtPositions = [
-  { x: 79, y: 70 },
-  { x: 78, y: 61 },
-  { x: 72, y: 58 },
-  { x: 70, y: 50 },
-  { x: 82, y: 29 },
-  { x: 77, y: 22 },
-  { x: 77, y: 43 },
-  { x: 74, y: 66 }
+  { x: 42, y: 78 },
+  { x: 45, y: 64 },
+  { x: 35, y: 57 },
+  { x: 31, y: 46 },
+  { x: 64, y: 27 },
+  { x: 54, y: 18 },
+  { x: 49, y: 39 },
+  { x: 39, y: 69 }
 ];
 
 function App() {
@@ -296,56 +296,31 @@ function App() {
         </header>
 
         <div className="map-stage">
-          <div className={`africa-map ${zoomed ? 'zoomed' : ''}`}>
-            <svg className="africa-basemap" viewBox="0 0 620 640" role="img" aria-label="Africa basemap with Somalia highlighted">
-              <rect width="620" height="640" className="map-water" />
-              <path className="land" d="M252 25 335 42 407 84 437 151 517 225 495 319 430 361 394 448 330 606 255 633 188 563 129 439 71 366 96 248 143 143 187 65Z" />
-              <path className="land-outline" d="M252 25 335 42 407 84 437 151 517 225 495 319 430 361 394 448 330 606 255 633 188 563 129 439 71 366 96 248 143 143 187 65Z" />
-              <path className="boundary" d="M188 65 226 136 214 222 258 292 243 395 286 485 255 633" />
-              <path className="boundary" d="M143 143 225 156 318 129 407 84" />
-              <path className="boundary" d="M96 248 196 252 286 222 377 241 517 225" />
-              <path className="boundary" d="M71 366 177 344 258 292 363 318 495 319" />
-              <path className="boundary" d="M129 439 243 395 347 407 430 361" />
-              <path className="boundary" d="M188 563 286 485 394 448" />
-              <path className="boundary" d="M335 42 318 129 377 241 363 318 347 407 394 448" />
-              <path className="country-detail" d="M435 122 492 112 535 150 525 209 517 225" />
-              <path className="country-detail" d="M421 335 480 381 472 445 430 485 394 448" />
-              <path className="somalia-border" d="M455 164 505 177 541 225 563 270 551 311 517 350 492 395 455 500 418 462 404 397 371 340 392 275 400 201Z" />
-            </svg>
-            <div className="somalia-outline" aria-label="Somalia risk heatmap">
-              {districts.map((district, index) => {
-                const score = displayScore(district);
-                return (
-                  <button
-                    key={district.id}
-                    className={`risk-cell ${getRiskLevel(score).toLowerCase()} ${selected.id === district.id ? 'selected' : ''}`}
-                    style={{
-                      '--x': `${districtPositions[index].x}%`,
-                      '--y': `${districtPositions[index].y}%`
-                    }}
-                    onClick={() => setSelectedId(district.id)}
-                    aria-label={`${district.name}, ${getRiskLevel(score)} risk, score ${score}`}
-                  >
-                    <span>{district.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="map-legend" aria-label="Risk legend">
-            <span className="low">Low</span>
-            <span className="medium">Medium</span>
-            <span className="high">High</span>
-            <span className="critical">Critical</span>
+          <div className={`somalia-map ${zoomed ? 'zoomed' : ''}`} role="img" aria-label="Stylized Somalia heatmap">
+            {districts.map((district, index) => {
+              const score = displayScore(district);
+              return (
+                <button
+                  key={district.id}
+                  className={`heat-point ${selected.id === district.id ? 'selected' : ''}`}
+                  style={{
+                    '--x': `${districtPositions[index].x}%`,
+                    '--y': `${districtPositions[index].y}%`,
+                    '--score': score
+                  }}
+                  onClick={() => setSelectedId(district.id)}
+                  aria-label={`${district.name}, priority score ${score}`}
+                >
+                  <span>{district.name}</span>
+                </button>
+              );
+            })}
           </div>
 
           <div className="map-controls" aria-label="Map zoom tools">
             <button type="button" onClick={() => setZoomed(true)}>+</button>
             <button type="button" onClick={() => setZoomed(false)}>-</button>
-            <button type="button" onClick={() => setZoomed((value) => !value)}>
-              {zoomed ? 'AF' : 'SO'}
-            </button>
+            <button type="button" onClick={() => setZoomed((value) => !value)}>◎</button>
           </div>
 
           <div className="timeline">
